@@ -57,8 +57,6 @@ static void sensors_init(void) {
 }
 
 static void kalman_init_all(void) {
-  // q: process noise, r: measurement noise
-  // TODO: tune these values after testing
   kalman_init(&k_pressure_ms, 0.05f, 1.44f, 0.0f);
   kalman_init(&k_pressure_bmp, 0.05f, 0.0004f, 0.0f);
   kalman_init(&k_accel_x, 0.05f, 0.0000769f, 0.0f);
