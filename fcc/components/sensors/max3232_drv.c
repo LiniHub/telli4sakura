@@ -212,6 +212,7 @@ static void kalman_init_all_sut(void) {
 }
 
 #define GRAVITY 9.81f
+// TODO: Tune G value
 #define LIFTOFF_ACCEL_THRESHOLD (2.5f * GRAVITY)
 #define LIFTOFF_CONFIRM_SAMPLES 5
 
@@ -231,6 +232,7 @@ static void check_liftoff(uint16_t *state, double magnitude) {
 }
 
 #define BURNOUT_WINDOW_SIZE 10
+// TODO: Tune threshold
 #define BURNOUT_ACCEL_THRESHOLD 0.0
 
 static void check_burnout(uint16_t *state, double magnitude) {
@@ -287,7 +289,6 @@ static void run_sut(void) {
 
     // TODO: rx icerigini isleyip gercek cevabi hazirla
     uint8_t tx[SUT_WRITE_SIZE] = {0};
-    uint16_t command_bytes;
 
     // TODO: Read virtual data
 
