@@ -25,13 +25,6 @@ static uint8_t calc_checksum(const uint8_t *buf, int len) {
   return cs;
 }
 
-/*
- * RS232 hattinda 5 byte'lik bir mod komutu bekleyip bekleyip
- * bekleyip beklenmedigini kontrol eder. Non-blocking: veri yoksa
- * hemen doner, mevcut modu degistirmez.
- *
- * Donus: yeni mod algilandiysa true, yoksa false.
- */
 static bool check_mode_command(fcc_mode_t *out_mode) {
   uint8_t buf[CMD_PACKET_SIZE];
 
@@ -249,6 +242,7 @@ static void check_burnout(uint16_t *state, double magnitude) {
   if (!first_window_iteration && (window_index > BURNOUT_WINDOW_SIZE - 1)) {
     first_window_iteration = true;
   }
+
   window_index %= BURNOUT_WINDOW_SIZE;
 
   if (!first_window_iteration)
@@ -265,11 +259,42 @@ static void check_burnout(uint16_t *state, double magnitude) {
   }
 }
 
+#define ALTITUDE_LOCK 1000
+#define ALTITUDE_WINDOW_SIZE 10
+
+static void check_altitude_lock(uint8_t *state, float altitude) {
+  static double altitude_window[ALTITUDE_WINDOW_SIZE];
+  static int window_index = 0;
+  static bool first_window_iteration = false;
+
+  if (!(*state & 0b10))
+    return;
+  if (*state & 0b100)
+    return;
+  altitude_window[window_index++] = altitude;
+
+  if (!first_window_iteration && (window_index > ALTITUDE_WINDOW_SIZE - 1)) {
+    first_window_iteration = true;
+  }
+
+  window_index %= ALTITUDE_WINDOW_SIZE;
+  if (!first_window_iteration)
+    return;
+  float sum = 0;
+  for (int y = 0; y < ALTITUDE_WINDOW_SIZE; y++) {
+    sum += altitude_window[y]
+  }
+  float average = sum / ALTITUDE_WINDOW_SIZE;
+  if (average >= ALTITUDE_LOCK)
+    *state |= 0b100
+}
+
 static uint16_t state = 0;
 
-static void check_state(double magnitude) {
+static void check_state(double magnitude, float altitude) {
   check_liftoff(&state, magnitude);
   check_burnout(&state, magnitude);
+  check_altitude_lock(&state, altitude);
 }
 
 static void run_sut(void) {
@@ -287,7 +312,7 @@ static void run_sut(void) {
   while (s_current_mode == FCC_MODE_SUT) {
     TickType_t loop_start = xTaskGetTickCount();
 
-    // TODO: rx icerigini isleyip gercek cevabi hazirla
+    // TODO: Process rx
     uint8_t tx[SUT_WRITE_SIZE] = {0};
 
     // TODO: Read virtual data
@@ -303,7 +328,7 @@ static void run_sut(void) {
       float al = kalman_update(&k_altitude_sut, sut_data.altitude);
 
       double magnitude = sqrt(ax * ax + ay * ay + az * az);
-      check_state(magnitude);
+      check_state(magnitude, al);
     }
 
     int sent = uart_write_bytes(RS232_UART, (const char *)tx, SUT_WRITE_SIZE);
